@@ -1,0 +1,10 @@
+streamlit
+langchain
+langchain-community
+langchain-groq
+langchain-huggingface
+pinecone==8.0.0
+langchain-pinecone==0.2.13
+python-dotenv
+pypdf
+reportlab
