@@ -49,9 +49,12 @@
 
 # app.py — FINAL CLEAN ENTERPRISE VERSION (No Sidebar) — Dec 10, 2025
 import streamlit as st
+import os
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
+# from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
+from langchain_community.vectorstores import Pinecone as PineconeVectorStore
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -111,9 +114,25 @@ if prompt := st.chat_input("Ask your HR question..."):
     st.chat_message("user").markdown(prompt)
 
     with st.spinner("Searching policies..."):
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vectorstore = PineconeVectorStore(index_name="hr-bot", embedding=embeddings)
+        # 1. Create embeddings
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+    
+        # 2. Connect to Pinecone (v5)
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        index = pc.Index("hr-bot")
+    
+        # 3. Create vectorstore from existing index
+        vectorstore = PineconeVectorStore(
+            index=index,
+            embedding=embeddings,
+            text_key="text"
+        )
+    
+        # 4. Retriever
         retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+
 
         template = """You are AskHR, a professional and accurate HR assistant.
         Answer ONLY from the context. Be concise and friendly.
@@ -130,4 +149,5 @@ if prompt := st.chat_input("Ask your HR question..."):
         sources = list(set([doc.metadata.get("source", "Policy").split("/")[-1] for doc in docs]))
 
     st.session_state.messages.append({"role": "assistant", "content": response, "sources": sources})
+
     st.rerun()
